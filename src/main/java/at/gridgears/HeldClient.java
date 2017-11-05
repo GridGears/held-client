@@ -7,6 +7,7 @@ import org.apache.commons.cli.*;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.URI;
 import java.nio.charset.Charset;
 
 public class HeldClient {
@@ -65,9 +66,9 @@ public class HeldClient {
     private void printHelp() {
         System.out.println("");
         System.out.println("held [IDENTIFIER]\tExecute HELD request for the given identifier");
-        System.out.println("last \t\t\tRepeat the last request");
-        System.out.println("help \t\t\tPrint help");
-        System.out.println("quit \t\t\tQuit");
+        System.out.println("last\t\t\tRepeat the last request");
+        System.out.println("help\t\t\tPrint help");
+        System.out.println("quit\t\t\tQuit");
 
         System.out.println("");
     }
@@ -93,15 +94,17 @@ public class HeldClient {
         return keepRunning;
     }
 
+    private static URI createGoogleMapsUri(Location location) {
+        return URI.create("https://www.google.com/maps/?q=" + location.getLatitude() + ',' + location.getLongitude());
+    }
+
     private static class Callback implements FindLocationCallback {
         @Override
         public void success(LocationResult locationResult) {
             if (locationResult.hasLocations()) {
                 System.out.println();
                 System.out.format("Received locations for %s%n", locationResult.getIdentifier());
-                locationResult.getLocations().forEach(loc -> {
-                    System.out.format("\t%s%n", formatLocation(loc));
-                });
+                locationResult.getLocations().forEach(loc -> System.out.format("\t%s%n", formatLocation(loc)));
             } else {
                 System.out.println();
                 System.out.format("Received error response for %s%n\t%s: %s", locationResult.getIdentifier(), locationResult.getStatus().getStatusCode(), locationResult.getStatus().getMessage());
@@ -111,7 +114,10 @@ public class HeldClient {
         }
 
         private String formatLocation(Location location) {
-            return "latitude: " + location.getLatitude() + "\tlongitude: " + location.getLongitude() + (location.getRadius() != 0.0 ? "\tradius: " + location.getRadius() : "");
+            return "latitude: " + location.getLatitude()
+                    + "\t longitude: " + location.getLongitude()
+                    + (location.getRadius() != 0.0 ? "\tradius: " + location.getRadius() : "")
+                    + "\t" + createGoogleMapsUri(location).toString();
         }
 
         @Override

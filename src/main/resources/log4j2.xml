@@ -9,7 +9,7 @@
         <Logger name="at.gridgears" level="INFO" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
-        <Root level="error">
+        <Root level="warn">
             <AppenderRef ref="Console"/>
         </Root>
     </Loggers>
