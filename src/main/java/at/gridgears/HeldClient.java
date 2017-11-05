@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.nio.charset.Charset;
+import java.util.Arrays;
 
 public class HeldClient {
 
@@ -19,13 +20,13 @@ public class HeldClient {
     public static void main(String[] args) throws IOException {
         Options options = new Options();
         options.addOption("u", true, "uri used for connection");
-        options.addOption("t", true, "token for authorization");
+        options.addOption("h", true, "headerName:headerValue");
 
         CommandLineParser parser = new DefaultParser();
         try {
             CommandLine cmd = parser.parse(options, args);
-
-            new HeldClient().start(cmd.getOptionValue("u"), cmd.getOptionValue("t"));
+            String[] headers = cmd.getOptionValues("h");
+            new HeldClient().start(cmd.getOptionValue("u"), (headers != null ? headers : new String[0]));
         } catch (ParseException e) {
             System.out.println("Unexpected exception:" + e.getMessage());
             System.exit(1);
@@ -33,8 +34,15 @@ public class HeldClient {
     }
 
     @SuppressFBWarnings("DM_EXIT")
-    private void start(String uri, String token) throws IOException {
-        held = new HeldBuilder().withURI(uri).withBasicAuthentication(token).build();
+    private void start(String uri, String[] customHeaders) throws IOException {
+        HeldBuilder heldBuilder = new HeldBuilder().withURI(uri);
+
+        Arrays.stream(customHeaders).forEach(header -> {
+            String[] headerSplit = header.split(":");
+            heldBuilder.withHeader(headerSplit[0], headerSplit.length > 0 ? headerSplit[1] : null);
+        });
+
+        held = heldBuilder.build();
 
         callback = new Callback();
 
