@@ -130,8 +130,7 @@ public class HeldClient {
 
         @Override
         public void failed(Exception exception) {
-            System.out.format("exception occurred");
-            exception.printStackTrace(System.out);
+            System.out.format("Exception occurred during request: " + exception.getMessage());
         }
     }
 }
