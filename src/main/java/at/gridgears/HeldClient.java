@@ -10,6 +10,7 @@ import java.io.InputStreamReader;
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.Arrays;
+import java.util.List;
 
 public class HeldClient {
 
@@ -59,9 +60,13 @@ public class HeldClient {
                 System.out.print("> ");
                 String input = reader.readLine();
                 if (input != null) {
-                    keepRunning = executeCommand(input);
-                    if (!input.equals("last")) {
-                        lastCommand = input;
+                    try {
+                        keepRunning = executeCommand(input);
+                        if (!input.equals("last")) {
+                            lastCommand = input;
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
                     }
                 } else {
                     break;
@@ -102,35 +107,53 @@ public class HeldClient {
         return keepRunning;
     }
 
-    private static URI createGoogleMapsUri(Location location) {
-        return URI.create("https://www.google.com/maps/?q=" + location.getLatitude() + ',' + location.getLongitude());
-    }
-
     private static class Callback implements FindLocationCallback {
         @Override
-        public void success(LocationResult locationResult) {
+        public void completed(LocationResult locationResult) {
+            printResultHeader(locationResult.getIdentifier());
             if (locationResult.hasLocations()) {
-                System.out.println();
-                System.out.format("Received locations for %s%n", locationResult.getIdentifier());
-                locationResult.getLocations().forEach(loc -> System.out.format("\t%s%n", formatLocation(loc)));
+                System.out.println("Location:");
+                List<Location> locations = locationResult.getLocations();
+                locations.forEach(loc -> {
+                    System.out.println("\t\tlat: " + loc.getLatitude());
+                    System.out.println("\t\tlon: " + loc.getLongitude());
+                    System.out.println("\t\tmap: " + createGoogleMapsUri(loc));
+                    System.out.println();
+                });
             } else {
-                System.out.println();
-                System.out.format("Received error response for %s%n\t%s: %s", locationResult.getIdentifier(), locationResult.getStatus().getStatusCode(), locationResult.getStatus().getMessage());
+                System.out.println("Failure:");
+                System.out.println("\t" + locationResult.getStatus().getStatusCode() + ": " + locationResult.getStatus().getMessage());
             }
+            printResultFooter();
+        }
+
+        @Override
+        public void failed(String identifier, Exception exception) {
+            printResultHeader(identifier);
+            System.out.println("Error occurred:");
+            System.out.println("\t" + exception.getMessage());
+            printResultFooter();
+        }
+
+        private void printResultFooter() {
+            System.out.println("*********************************************************");
             System.out.println();
             System.out.print("> ");
         }
 
-        private String formatLocation(Location location) {
-            return "latitude: " + location.getLatitude()
-                    + "\t longitude: " + location.getLongitude()
-                    + (location.getRadius() != 0.0 ? "\tradius: " + location.getRadius() : "")
-                    + "\t" + createGoogleMapsUri(location).toString();
+        private void printResultHeader(String identifier) {
+            System.out.println();
+            System.out.println();
+            System.out.println("QUERY RESULT*********************************************");
+            System.out.println("Query:");
+            System.out.println("\tIdentifier:\t" + identifier);
+            System.out.println();
         }
 
-        @Override
-        public void failed(Exception exception) {
-            System.out.format("Exception occurred during request: " + exception.getMessage());
+
+        private static URI createGoogleMapsUri(Location location) {
+            return URI.create("https://www.google.com/maps/?q=" + location.getLatitude() + ',' + location.getLongitude());
         }
     }
+
 }
