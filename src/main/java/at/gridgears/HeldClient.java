@@ -90,7 +90,7 @@ public class HeldClient {
         boolean keepRunning = true;
         switch (input.split(" ")[0]) {
             case "held":
-                held.findLocation(input.split(" ")[1], callback);
+                held.findLocation(input.split(" ")[1].replace("+", ""), callback);
                 break;
             case "quit":
                 keepRunning = false;
