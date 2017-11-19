@@ -112,20 +112,42 @@ public class HeldClient {
         @Override
         public void completed(FindLocationRequest request, FindLocationResult findLocationResult) {
             printResultHeader(request);
-            if (findLocationResult.hasLocations()) {
-                System.out.println("Location:");
-                List<Location> locations = findLocationResult.getLocations();
-                locations.forEach(loc -> {
-                    System.out.println("\t\tlat: " + loc.getLatitude());
-                    System.out.println("\t\tlon: " + loc.getLongitude());
-                    System.out.println("\t\tmap: " + createGoogleMapsUri(loc));
-                    System.out.println();
-                });
-            } else {
-                System.out.println("Failure:");
-                System.out.println("\t" + findLocationResult.getStatus().getStatusCode() + ": " + findLocationResult.getStatus().getMessage());
+            switch (findLocationResult.getStatus()) {
+                case FOUND:
+                    printFoundResult(findLocationResult);
+                    break;
+                case NOT_FOUND:
+                    printNotFoundResult(findLocationResult);
+                    break;
+                case ERROR: {
+                    printErrorResult(findLocationResult);
+                    break;
+                }
             }
             printResultFooter();
+        }
+
+        private void printErrorResult(FindLocationResult findLocationResult) {
+            System.out.println("Failure:");
+            FindLocationError findLocationError = findLocationResult.getError().get();
+            System.out.println("\t" + findLocationError.getCode() + ": " + findLocationError.getMessage());
+        }
+
+        private void printNotFoundResult(FindLocationResult findLocationResult) {
+            System.out.println("Not found:");
+            FindLocationError findLocationError = findLocationResult.getError().get();
+            System.out.println("\t" + findLocationError.getCode() + ": " + findLocationError.getMessage());
+        }
+
+        private void printFoundResult(FindLocationResult findLocationResult) {
+            System.out.println("Location:");
+            List<Location> locations = findLocationResult.getLocations();
+            locations.forEach(loc -> {
+                System.out.println("\t\tlat: " + loc.getLatitude());
+                System.out.println("\t\tlon: " + loc.getLongitude());
+                System.out.println("\t\tmap: " + createGoogleMapsUri(loc));
+                System.out.println();
+            });
         }
 
         @Override
