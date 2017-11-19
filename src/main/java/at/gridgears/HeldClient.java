@@ -90,7 +90,8 @@ public class HeldClient {
         boolean keepRunning = true;
         switch (input.split(" ")[0]) {
             case "held":
-                held.findLocation(input.split(" ")[1], callback);
+                String identifier = input.split(" ")[1];
+                held.findLocation(new FindLocationRequest(identifier), callback);
                 break;
             case "quit":
                 keepRunning = false;
@@ -109,11 +110,11 @@ public class HeldClient {
 
     private static class Callback implements FindLocationCallback {
         @Override
-        public void completed(LocationResult locationResult) {
-            printResultHeader(locationResult.getIdentifier());
-            if (locationResult.hasLocations()) {
+        public void completed(FindLocationRequest request, FindLocationResult findLocationResult) {
+            printResultHeader(request);
+            if (findLocationResult.hasLocations()) {
                 System.out.println("Location:");
-                List<Location> locations = locationResult.getLocations();
+                List<Location> locations = findLocationResult.getLocations();
                 locations.forEach(loc -> {
                     System.out.println("\t\tlat: " + loc.getLatitude());
                     System.out.println("\t\tlon: " + loc.getLongitude());
@@ -122,14 +123,14 @@ public class HeldClient {
                 });
             } else {
                 System.out.println("Failure:");
-                System.out.println("\t" + locationResult.getStatus().getStatusCode() + ": " + locationResult.getStatus().getMessage());
+                System.out.println("\t" + findLocationResult.getStatus().getStatusCode() + ": " + findLocationResult.getStatus().getMessage());
             }
             printResultFooter();
         }
 
         @Override
-        public void failed(String identifier, Exception exception) {
-            printResultHeader(identifier);
+        public void failed(FindLocationRequest request, Exception exception) {
+            printResultHeader(request);
             System.out.println("Error occurred:");
             System.out.println("\t" + exception.getMessage());
             printResultFooter();
@@ -141,12 +142,12 @@ public class HeldClient {
             System.out.print("> ");
         }
 
-        private void printResultHeader(String identifier) {
+        private void printResultHeader(FindLocationRequest request) {
             System.out.println();
             System.out.println();
             System.out.println("QUERY RESULT*********************************************");
             System.out.println("Query:");
-            System.out.println("\tIdentifier:\t" + identifier);
+            System.out.println("\tIdentifier:\t" + request.getIdentifier());
             System.out.println();
         }
 
