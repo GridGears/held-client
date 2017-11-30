@@ -10,7 +10,6 @@ import java.io.InputStreamReader;
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.Arrays;
-import java.util.List;
 
 public class HeldClient {
 
@@ -140,14 +139,24 @@ public class HeldClient {
         }
 
         private void printFoundResult(FindLocationResult findLocationResult) {
-            System.out.println("Location:");
-            List<Location> locations = findLocationResult.getLocations();
-            locations.forEach(loc -> {
-                System.out.println("\t\tlat: " + loc.getLatitude());
-                System.out.println("\t\tlon: " + loc.getLongitude());
-                System.out.println("\t\tmap: " + createGoogleMapsUri(loc));
-                System.out.println();
-            });
+            if (!findLocationResult.getLocationReferences().isEmpty()) {
+                System.out.println("Location References:");
+                findLocationResult.getLocationReferences().forEach(ref -> {
+                    System.out.println("\t\tURI:\t\t" + ref.getUri().toASCIIString());
+                    System.out.println("\t\tExpires:\t" + ref.getExpiration().toString());
+                    System.out.println();
+                });
+            }
+
+            if (!findLocationResult.getLocations().isEmpty()) {
+                System.out.println("Locations:");
+                findLocationResult.getLocations().forEach(loc -> {
+                    System.out.println("\t\tlat: " + loc.getLatitude());
+                    System.out.println("\t\tlon: " + loc.getLongitude());
+                    System.out.println("\t\tmap: " + createGoogleMapsUri(loc));
+                    System.out.println();
+                });
+            }
         }
 
         @Override
@@ -178,5 +187,4 @@ public class HeldClient {
             return URI.create("https://www.google.com/maps/?q=" + location.getLatitude() + ',' + location.getLongitude());
         }
     }
-
 }
