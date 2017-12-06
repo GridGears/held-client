@@ -35,7 +35,7 @@ public class HeldClient {
     }
 
     @SuppressFBWarnings("DM_EXIT")
-    private void start(String uri, String[] customHeaders) throws IOException {
+    private void start(String uri, String... customHeaders) throws IOException {
         HeldBuilder heldBuilder = new HeldBuilder().withURI(uri);
 
         Arrays.stream(customHeaders).forEach(header -> {
@@ -104,6 +104,7 @@ public class HeldClient {
                 break;
             default:
                 System.out.println("Unknown command");
+                break;
         }
         return keepRunning;
     }
@@ -112,7 +113,8 @@ public class HeldClient {
         @Override
         public void completed(FindLocationRequest request, FindLocationResult findLocationResult) {
             printResultHeader(request);
-            switch (findLocationResult.getStatus()) {
+            FindLocationResult.Status status = findLocationResult.getStatus();
+            switch (status) {
                 case FOUND:
                     printFoundResult(findLocationResult);
                     break;
@@ -121,6 +123,10 @@ public class HeldClient {
                     break;
                 case ERROR: {
                     printErrorResult(findLocationResult);
+                    break;
+                }
+                default: {
+                    printUnknownStatus(status);
                     break;
                 }
             }
@@ -148,6 +154,10 @@ public class HeldClient {
                 System.out.println("\t\tmap: " + createGoogleMapsUri(loc));
                 System.out.println();
             });
+        }
+
+        private void printUnknownStatus(FindLocationResult.Status status) {
+            System.out.println("Unknown result status: "+status.name());
         }
 
         @Override
