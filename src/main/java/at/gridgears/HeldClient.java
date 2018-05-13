@@ -39,7 +39,7 @@ public class HeldClient {
 
         Arrays.stream(customHeaders).forEach(header -> {
             String[] headerSplit = header.split(":");
-            heldBuilder.withHeader(headerSplit[0], headerSplit.length > 0 ? headerSplit[1] : null);
+            heldBuilder.withHeader(headerSplit[0], headerSplit.length > 1 ? headerSplit[1] : null);
         });
 
         held = heldBuilder.build();
