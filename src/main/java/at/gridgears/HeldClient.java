@@ -3,7 +3,9 @@ package at.gridgears;
 import at.gridgears.held.*;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.commons.cli.*;
+import org.apache.commons.lang3.StringUtils;
 
+import javax.annotation.Nullable;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -16,6 +18,7 @@ public class HeldClient {
     private Held held;
     private FindLocationCallback callback;
     private String lastCommand = "help";
+    private boolean verbose;
 
     public static void main(String[] args) throws IOException {
         Options options = new Options();
@@ -78,9 +81,10 @@ public class HeldClient {
     private void printHelp() {
         System.out.println("");
         System.out.println("held [IDENTIFIER]\tExecute HELD request for the given identifier");
-        System.out.println("last\t\t\tRepeat the last request");
-        System.out.println("help\t\t\tPrint help");
-        System.out.println("quit\t\t\tQuit");
+        System.out.println("last\t\t\t\tRepeat the last request");
+        System.out.println("verbose [on/off]\tPrint raw response");
+        System.out.println("help\t\t\t\tPrint help");
+        System.out.println("quit\t\t\t\tQuit");
 
         System.out.println("");
     }
@@ -92,9 +96,15 @@ public class HeldClient {
                 String identifier = input.split(" ")[1];
                 held.findLocation(new FindLocationRequest(identifier), callback);
                 break;
+            case "verbose":
+                String[] parameters = input.split(" ");
+                verbose = parameters.length == 1 || (parameters[1].equals("on"));
+                System.out.println("verbose is " + verbose);
+                break;
             case "quit":
                 keepRunning = false;
                 break;
+
             case "last":
                 executeCommand(lastCommand);
                 break;
@@ -108,10 +118,10 @@ public class HeldClient {
         return keepRunning;
     }
 
-    private static class Callback implements FindLocationCallback {
+    private class Callback implements FindLocationCallback {
         @Override
         public void completed(FindLocationRequest request, FindLocationResult findLocationResult) {
-            printResultHeader(request);
+            printResultHeader(request, findLocationResult.getRawRequest(), findLocationResult.getRawResponse());
             FindLocationResult.Status status = findLocationResult.getStatus();
             switch (status) {
                 case FOUND:
@@ -159,6 +169,9 @@ public class HeldClient {
                 findLocationResult.getLocations().forEach(loc -> {
                     System.out.println("\t\tlat: " + loc.getLatitude());
                     System.out.println("\t\tlon: " + loc.getLongitude());
+                    if (loc.getRadius() != 0) {
+                        System.out.println("\t\trad: " + loc.getRadius());
+                    }
                     System.out.println("\t\tmap: " + createGoogleMapsUri(loc));
                     System.out.println();
                 });
@@ -166,12 +179,12 @@ public class HeldClient {
         }
 
         private void printUnknownStatus(FindLocationResult.Status status) {
-            System.out.println("Unknown result status: "+status.name());
+            System.out.println("Unknown result status: " + status.name());
         }
 
         @Override
         public void failed(FindLocationRequest request, Exception exception) {
-            printResultHeader(request);
+            printResultHeader(request, null, null);
             System.out.println("Error occurred:");
             System.out.println("\t" + exception.getMessage());
             printResultFooter();
@@ -183,17 +196,31 @@ public class HeldClient {
             System.out.print("> ");
         }
 
-        private void printResultHeader(FindLocationRequest request) {
+        private void printResultHeader(FindLocationRequest request, @Nullable String rawRequest, @Nullable String rawResponse) {
             System.out.println();
             System.out.println();
             System.out.println("QUERY RESULT*********************************************");
+            System.out.println();
+            if (verbose && StringUtils.isNotEmpty(rawRequest)) {
+                System.out.println("Request");
+                System.out.println("----------------");
+                System.out.println(rawRequest);
+                System.out.println("----------------");
+                System.out.println();
+            }
+            if (verbose && StringUtils.isNotEmpty(rawResponse)) {
+                System.out.println("Response");
+                System.out.println("----------------");
+                System.out.println(rawResponse);
+                System.out.println("----------------");
+                System.out.println();
+            }
             System.out.println("Query:");
             System.out.println("\tIdentifier:\t" + request.getIdentifier());
             System.out.println();
         }
 
-
-        private static URI createGoogleMapsUri(Location location) {
+        private URI createGoogleMapsUri(Location location) {
             return URI.create("https://www.google.com/maps/?q=" + location.getLatitude() + ',' + location.getLongitude());
         }
     }
