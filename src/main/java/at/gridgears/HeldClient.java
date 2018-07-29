@@ -11,7 +11,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.nio.charset.Charset;
-import java.util.Arrays;
+import java.util.*;
 
 public class HeldClient {
 
@@ -19,6 +19,8 @@ public class HeldClient {
     private FindLocationCallback callback;
     private String lastCommand = "help";
     private boolean verbose;
+    private List<FindLocationRequest.LocationType> locationTypes = new LinkedList<>();
+    private boolean exact;
 
     public static void main(String[] args) throws IOException {
         Options options = new Options();
@@ -64,9 +66,6 @@ public class HeldClient {
                 if (input != null) {
                     try {
                         keepRunning = executeCommand(input);
-                        if (!input.equals("last")) {
-                            lastCommand = input;
-                        }
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -80,6 +79,8 @@ public class HeldClient {
 
     private void printHelp() {
         System.out.println("");
+        System.out.println("exact [true/false]\tSet the exact parameter");
+        System.out.println("types [geo,civ,ref]\tSet the types, space separated");
         System.out.println("held [IDENTIFIER]\tExecute HELD request for the given identifier");
         System.out.println("last\t\t\t\tRepeat the last request");
         System.out.println("verbose [on/off]\tPrint raw response");
@@ -93,14 +94,42 @@ public class HeldClient {
         boolean keepRunning = true;
         switch (input.split(" ")[0]) {
             case "held":
+                lastCommand = input;
                 String identifier = input.split(" ")[1];
-                held.findLocation(new FindLocationRequest(identifier), callback);
+
+                held.findLocation(new FindLocationRequest(identifier, locationTypes, exact), callback);
                 break;
-            case "verbose":
+            case "verbose": {
                 String[] parameters = input.split(" ");
                 verbose = parameters.length == 1 || (parameters[1].equals("on"));
                 System.out.println("verbose is " + verbose);
                 break;
+            }
+            case "exact": {
+                String[] parameters = input.split(" ");
+                exact = parameters.length == 1 || (parameters[1].equals("true"));
+                break;
+            }
+            case "types": {
+                String[] parameters = input.split(" ");
+                locationTypes.clear();
+                for (int i = 1; i < parameters.length; i++) {
+                    switch (parameters[i]) {
+                        case "geo":
+                            locationTypes.add(FindLocationRequest.LocationType.GEODETIC);
+                            break;
+                        case "civ":
+                            locationTypes.add(FindLocationRequest.LocationType.CIVIC);
+                            break;
+                        case "ref":
+                            locationTypes.add(FindLocationRequest.LocationType.LOCATION_URI);
+                            break;
+                        default:
+                            System.err.println("Unknown location type " + parameters[i]);
+                    }
+                }
+                break;
+            }
             case "quit":
                 keepRunning = false;
                 break;
