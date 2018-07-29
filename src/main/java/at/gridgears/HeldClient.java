@@ -13,13 +13,14 @@ import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.*;
 
+@SuppressWarnings("PMD.SingularField")
 public class HeldClient {
 
     private Held held;
     private FindLocationCallback callback;
     private String lastCommand = "help";
     private boolean verbose;
-    private List<FindLocationRequest.LocationType> locationTypes = new LinkedList<>();
+    private final List<FindLocationRequest.LocationType> locationTypes = new LinkedList<>();
     private boolean exact;
 
     public static void main(String[] args) throws IOException {
@@ -126,6 +127,7 @@ public class HeldClient {
                             break;
                         default:
                             System.err.println("Unknown location type " + parameters[i]);
+                            break;
                     }
                 }
                 break;
