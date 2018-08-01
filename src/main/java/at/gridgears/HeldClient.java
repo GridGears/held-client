@@ -4,6 +4,13 @@ import at.gridgears.held.*;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.commons.cli.*;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.HttpHeaders;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.util.EntityUtils;
 
 import javax.annotation.Nullable;
 import java.io.BufferedReader;
@@ -11,16 +18,19 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.nio.charset.Charset;
+import java.time.Duration;
 import java.util.*;
 
 @SuppressWarnings("PMD.SingularField")
 public class HeldClient {
+    private final List<FindLocationRequest.LocationType> locationTypes = new LinkedList<>();
+    private final Map<FindLocationRequest, Long> requestTimestamps = new HashMap<>();
 
     private Held held;
     private FindLocationCallback callback;
     private String lastCommand = "help";
+    private URI lastReference;
     private boolean verbose;
-    private final List<FindLocationRequest.LocationType> locationTypes = new LinkedList<>();
     private boolean exact;
 
     public static void main(String[] args) throws IOException {
@@ -79,42 +89,45 @@ public class HeldClient {
     }
 
     private void printHelp() {
-        System.out.println("");
+        System.out.println();
         System.out.println("exact [true/false]\tSet the exact parameter");
         System.out.println("types [geo,civ,ref]\tSet the types, space separated");
         System.out.println("held [IDENTIFIER]\tExecute HELD request for the given identifier");
         System.out.println("last\t\t\t\tRepeat the last request");
+        System.out.println("deref\t\t\t\tDerefenerce the last received location URI");
+        System.out.println("deref [uri]\t\t\tDerefenerce the location URI");
         System.out.println("verbose [on/off]\tPrint raw response");
         System.out.println("help\t\t\t\tPrint help");
         System.out.println("quit\t\t\t\tQuit");
 
-        System.out.println("");
+        System.out.println();
     }
 
     private boolean executeCommand(String input) {
         boolean keepRunning = true;
-        switch (input.split(" ")[0]) {
+        String[] split = input.split(" ");
+        String[] parameters = split.length > 1 ? Arrays.copyOfRange(split, 1, split.length) : new String[0];
+        switch (split[0]) {
             case "held":
                 lastCommand = input;
-                String identifier = input.split(" ")[1];
+                String identifier = parameters[0];
 
-                held.findLocation(new FindLocationRequest(identifier, locationTypes, exact), callback);
+                FindLocationRequest request = new FindLocationRequest(identifier, locationTypes, exact);
+                requestTimestamps.put(request, System.nanoTime());
+                held.findLocation(request, callback);
                 break;
             case "verbose": {
-                String[] parameters = input.split(" ");
-                verbose = parameters.length == 1 || (parameters[1].equals("on"));
+                verbose = parameters.length == 0 || (parameters[0].equals("on"));
                 System.out.println("verbose is " + verbose);
                 break;
             }
             case "exact": {
-                String[] parameters = input.split(" ");
-                exact = parameters.length == 1 || (parameters[1].equals("true"));
+                exact = parameters.length == 0 || (parameters[0].equals("true"));
                 break;
             }
             case "types": {
-                String[] parameters = input.split(" ");
                 locationTypes.clear();
-                for (int i = 1; i < parameters.length; i++) {
+                for (int i = 0; i < parameters.length; i++) {
                     switch (parameters[i]) {
                         case "geo":
                             locationTypes.add(FindLocationRequest.LocationType.GEODETIC);
@@ -132,10 +145,18 @@ public class HeldClient {
                 }
                 break;
             }
+            case "deref":
+                if (parameters.length == 0) {
+                    if (lastReference != null) {
+                        dereference(lastReference);
+                    }
+                } else {
+                    dereference(URI.create(parameters[0]));
+                }
+                break;
             case "quit":
                 keepRunning = false;
                 break;
-
             case "last":
                 executeCommand(lastCommand);
                 break;
@@ -149,14 +170,38 @@ public class HeldClient {
         return keepRunning;
     }
 
+    private void dereference(URI lastReference) {
+        CloseableHttpClient httpClient = HttpClientBuilder.create().build();
+        HttpUriRequest getRequest = new HttpGet(lastReference);
+        getRequest.addHeader(HttpHeaders.ACCEPT, "application/pidf+xml");
+
+        try (CloseableHttpResponse httpResponse = httpClient.execute(getRequest)) {
+            String content = EntityUtils.toString(httpResponse.getEntity());
+
+            int statusCode = httpResponse.getStatusLine().getStatusCode();
+            System.out.println("Dereferenced\t" + lastReference);
+            System.out.println("\tstatusCode:\t" + statusCode);
+            System.out.println("\tcontent");
+            System.out.println("-------");
+            System.out.println(content);
+            System.out.println("-------");
+        } catch (IOException e) {
+            System.err.println("Could not dereference " + lastReference);
+            e.printStackTrace();
+        }
+    }
+
     private class Callback implements FindLocationCallback {
         @Override
         public void completed(FindLocationRequest request, FindLocationResult findLocationResult) {
-            printResultHeader(request, findLocationResult.getRawRequest(), findLocationResult.getRawResponse());
+            printResultHeader(request, findLocationResult);
             FindLocationResult.Status status = findLocationResult.getStatus();
             switch (status) {
                 case FOUND:
                     printFoundResult(findLocationResult);
+                    if (!findLocationResult.getLocationReferences().isEmpty()) {
+                        lastReference = findLocationResult.getLocationReferences().get(findLocationResult.getLocationReferences().size() - 1).getUri();
+                    }
                     break;
                 case NOT_FOUND:
                     printNotFoundResult(findLocationResult);
@@ -215,7 +260,7 @@ public class HeldClient {
 
         @Override
         public void failed(FindLocationRequest request, Exception exception) {
-            printResultHeader(request, null, null);
+            printResultHeader(request, null);
             System.out.println("Error occurred:");
             System.out.println("\t" + exception.getMessage());
             printResultFooter();
@@ -227,27 +272,39 @@ public class HeldClient {
             System.out.print("> ");
         }
 
-        private void printResultHeader(FindLocationRequest request, @Nullable String rawRequest, @Nullable String rawResponse) {
+        private void printResultHeader(final FindLocationRequest request, @Nullable final FindLocationResult findLocationResult) {
+            long executionTime = Duration.ofNanos(System.nanoTime() - requestTimestamps.remove(request)).toMillis();
+
             System.out.println();
             System.out.println();
             System.out.println("QUERY RESULT*********************************************");
             System.out.println();
-            if (verbose && StringUtils.isNotEmpty(rawRequest)) {
-                System.out.println("Request");
-                System.out.println("----------------");
-                System.out.println(rawRequest);
-                System.out.println("----------------");
-                System.out.println();
+            if (findLocationResult != null && verbose) {
+                if (StringUtils.isNotEmpty(findLocationResult.getRawRequest())) {
+                    System.out.println("Request");
+                    System.out.println("----------------");
+                    System.out.println(findLocationResult.getRawRequest());
+                    System.out.println("----------------");
+                    System.out.println();
+                }
+                if (StringUtils.isNotEmpty(findLocationResult.getRawResponse())) {
+                    System.out.println("Response");
+                    System.out.println("----------------");
+                    System.out.println(findLocationResult.getRawResponse());
+                    System.out.println("----------------");
+                    System.out.println();
+                }
+                if (!findLocationResult.getLocationReferences().isEmpty()) {
+                    System.out.println("References");
+                    System.out.println("----------------");
+                    findLocationResult.getLocationReferences().forEach(ref -> dereference(ref.getUri()));
+                    System.out.println("----------------");
+                }
             }
-            if (verbose && StringUtils.isNotEmpty(rawResponse)) {
-                System.out.println("Response");
-                System.out.println("----------------");
-                System.out.println(rawResponse);
-                System.out.println("----------------");
-                System.out.println();
-            }
+
             System.out.println("Query:");
-            System.out.println("\tIdentifier:\t" + request.getIdentifier());
+            System.out.println("\tIdentifier:\t\t" + request.getIdentifier());
+            System.out.println("\tExecution Time:\t" + executionTime + "ms");
             System.out.println();
         }
 
