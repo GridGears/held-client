@@ -4,6 +4,7 @@ import at.gridgears.held.*;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.commons.cli.*;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -252,6 +253,15 @@ public class HeldClient {
                     System.out.println();
                 });
             }
+
+            if (!findLocationResult.getCivicAddresses().isEmpty()) {
+                System.out.println("Civic Addresses:");
+                findLocationResult.getCivicAddresses().forEach(civic -> {
+                    List<Pair<String, String>> fields = getNonEmptyFields(civic);
+                    fields.forEach(pair -> System.out.println("\t\t" + pair.getLeft() + ": " + pair.getRight()));
+                    System.out.println();
+                });
+            }
         }
 
         private void printUnknownStatus(FindLocationResult.Status status) {
@@ -311,5 +321,46 @@ public class HeldClient {
         private URI createGoogleMapsUri(Location location) {
             return URI.create("https://www.google.com/maps/?q=" + location.getLatitude() + ',' + location.getLongitude());
         }
+    }
+
+    private List<Pair<String, String>> getNonEmptyFields(CivicAddress civic) {
+        List<Pair<String, String>> result = new LinkedList<>();
+        getOptional(civic.getCountry()).ifPresent(val -> result.add(Pair.of("Country", val)));
+        getOptional(civic.getA1()).ifPresent(val -> result.add(Pair.of("A1", val)));
+        getOptional(civic.getA2()).ifPresent(val -> result.add(Pair.of("A2", val)));
+        getOptional(civic.getA3()).ifPresent(val -> result.add(Pair.of("A3", val)));
+        getOptional(civic.getA4()).ifPresent(val -> result.add(Pair.of("A4", val)));
+        getOptional(civic.getA5()).ifPresent(val -> result.add(Pair.of("A5", val)));
+        getOptional(civic.getA6()).ifPresent(val -> result.add(Pair.of("A6", val)));
+        getOptional(civic.getPrm()).ifPresent(val -> result.add(Pair.of("PRM", val)));
+        getOptional(civic.getPrd()).ifPresent(val -> result.add(Pair.of("PRD", val)));
+        getOptional(civic.getRd()).ifPresent(val -> result.add(Pair.of("RD", val)));
+        getOptional(civic.getSts()).ifPresent(val -> result.add(Pair.of("STS", val)));
+        getOptional(civic.getPod()).ifPresent(val -> result.add(Pair.of("POD", val)));
+        getOptional(civic.getPom()).ifPresent(val -> result.add(Pair.of("POM", val)));
+        getOptional(civic.getRdsec()).ifPresent(val -> result.add(Pair.of("RDSEC", val)));
+        getOptional(civic.getRdbr()).ifPresent(val -> result.add(Pair.of("RDBR", val)));
+        getOptional(civic.getRdsubbr()).ifPresent(val -> result.add(Pair.of("RDSUBBR", val)));
+        getOptional(civic.getHno()).ifPresent(val -> result.add(Pair.of("HNO", val)));
+        getOptional(civic.getHns()).ifPresent(val -> result.add(Pair.of("HNS", val)));
+        getOptional(civic.getLmk()).ifPresent(val -> result.add(Pair.of("LMK", val)));
+        getOptional(civic.getLoc()).ifPresent(val -> result.add(Pair.of("LOC", val)));
+        getOptional(civic.getFlr()).ifPresent(val -> result.add(Pair.of("FLR", val)));
+        getOptional(civic.getNam()).ifPresent(val -> result.add(Pair.of("NAM", val)));
+        getOptional(civic.getPc()).ifPresent(val -> result.add(Pair.of("PC", val)));
+        getOptional(civic.getBld()).ifPresent(val -> result.add(Pair.of("BLD", val)));
+        getOptional(civic.getUnit()).ifPresent(val -> result.add(Pair.of("UNIT", val)));
+        getOptional(civic.getRoom()).ifPresent(val -> result.add(Pair.of("ROOM", val)));
+        getOptional(civic.getSeat()).ifPresent(val -> result.add(Pair.of("SEAT", val)));
+        getOptional(civic.getPlc()).ifPresent(val -> result.add(Pair.of("PLC", val)));
+        getOptional(civic.getPcn()).ifPresent(val -> result.add(Pair.of("PCN", val)));
+        getOptional(civic.getPobox()).ifPresent(val -> result.add(Pair.of("POBOX", val)));
+        getOptional(civic.getAddcode()).ifPresent(val -> result.add(Pair.of("ADDCODE", val)));
+
+        return result;
+    }
+
+    private Optional<String> getOptional(@Nullable String value) {
+        return Optional.ofNullable(value);
     }
 }
